@@ -123,13 +123,15 @@ public:
         TransactionCreationFailed, // Error returned when wallet is still locked
         TransactionCommitFailed,
         AbsurdFee,
-        PaymentRequestExpired
+        PaymentRequestExpired,
+        MixStakeOnlyMode
     };
 
     enum EncryptionStatus {
         Unencrypted,           // !wallet->IsCrypted()
         Locked,                // wallet->IsCrypted() && wallet->IsLocked(true)
         UnlockedForMixingOnly, // wallet->IsCrypted() && !wallet->IsLocked(true) && wallet->IsLocked()
+        UnlockedForStakingOnly, // wallet->IsCrypted() && !wallet->IsLocked(true) && wallet->IsLocked()
         Unlocked,              // wallet->IsCrypted() && !wallet->IsLocked()
     };
 
@@ -140,11 +142,14 @@ public:
     RecentRequestsTableModel* getRecentRequestsTableModel();
 
     CAmount getBalance(const CCoinControl* coinControl = NULL) const;
+    CAmount getTotal() const;
+    CAmount getStake() const;
     CAmount getUnconfirmedBalance() const;
     CAmount getImmatureBalance() const;
     CAmount getAnonymizedBalance() const;
     bool haveWatchOnly() const;
     CAmount getWatchBalance() const;
+    CAmount getWatchStake() const;
     CAmount getWatchUnconfirmedBalance() const;
     CAmount getWatchImmatureBalance() const;
     EncryptionStatus getEncryptionStatus() const;
@@ -172,7 +177,7 @@ public:
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString& passphrase);
     // Passphrase only needed when unlocking
-    bool setWalletLocked(bool locked, const SecureString& passPhrase = SecureString(), bool fMixing = false);
+    bool setWalletLocked(bool locked, const SecureString& passPhrase = SecureString(), int64_t nSeconds = 0, bool fMixing = false);
     bool changePassphrase(const SecureString& oldPass, const SecureString& newPass);
 
     // Wallet backup
@@ -245,10 +250,13 @@ private:
 
     // Cache some values to be able to detect changes
     CAmount cachedBalance;
+    CAmount cachedTotal;
+    CAmount cachedStake;
     CAmount cachedUnconfirmedBalance;
     CAmount cachedImmatureBalance;
     CAmount cachedAnonymizedBalance;
     CAmount cachedWatchOnlyBalance;
+    CAmount cachedWatchOnlyStake;
     CAmount cachedWatchUnconfBalance;
     CAmount cachedWatchImmatureBalance;
     EncryptionStatus cachedEncryptionStatus;
@@ -264,7 +272,7 @@ private:
 
 Q_SIGNALS:
     // Signal that balance in wallet changed
-    void balanceChanged(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance, const CAmount& anonymizedBalance, const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
+    void balanceChanged(const CAmount& balance, const CAmount& total, const CAmount& stake, const CAmount& unconfirmedBalance, const CAmount& immatureBalance, const CAmount& anonymizedBalance, const CAmount& watchOnlyBalance, const CAmount& watchOnlyStake, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
 
     // Encryption status of wallet changed
     void encryptionStatusChanged(int status);
@@ -297,6 +305,8 @@ public Q_SLOTS:
     void updateWatchOnlyFlag(bool fHaveWatchonly);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */
     void pollBalanceChanged();
+    /* Update address book labels in the database */
+    void updateAddressBookLabels(const CTxDestination& address, const std::string& strName, const std::string& strPurpose);
 };
 
 #endif // DYNAMIC_QT_WALLETMODEL_H

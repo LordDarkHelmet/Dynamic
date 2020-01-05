@@ -35,6 +35,7 @@
 #include "fluid/fluidmining.h"
 #include "fluid/fluidmint.h"
 #include "fluid/fluidsovereign.h"
+#include "fluid/fluidstaking.h"
 #include "governance.h"
 #include "httprpc.h"
 #include "httpserver.h"
@@ -53,6 +54,7 @@
 #endif // ENABLE_WALLET
 #include "compat/sanity.h"
 #include "consensus/validation.h"
+#include "pos/staker.h"
 #include "privatesend-server.h"
 #include "psnotificationinterface.h"
 #include "rpc/register.h"
@@ -361,6 +363,8 @@ void PrepareShutdown()
         pFluidDynodeDB = NULL;
         delete pFluidMiningDB;
         pFluidMiningDB = NULL;
+        delete pFluidStakingDB;
+        pFluidStakingDB = NULL;
         delete pFluidMintDB;
         pFluidMintDB = NULL;
         delete pFluidSovereignDB;
@@ -714,6 +718,10 @@ std::string LicenseInfo()
            FormatParagraph(strprintf(_("Copyright (C) 2009-%i The Bitcoin Core Developers"), COPYRIGHT_YEAR)) + "\n" +
            "\n" +
            FormatParagraph(strprintf(_("Copyright (C) 2014-%i The Dash Developers"), COPYRIGHT_YEAR)) + "\n" +
+           "\n" +
+           FormatParagraph(strprintf(_("Copyright (C) 2017-%i The Particl Core developers"), COPYRIGHT_YEAR)) + "\n" +
+           "\n" +
+           FormatParagraph(strprintf(_("Copyright (C) 2003-%i Arvid Norberg"), COPYRIGHT_YEAR)) + "\n" +
            "\n" +
            FormatParagraph(_("This is experimental software.")) + "\n" +
            "\n" +
@@ -1260,6 +1268,13 @@ bool AppInitParameterInteraction()
     RegisterWalletRPCCommands(tableRPC);
 #endif
 
+    if (IsArgSet("-reservebalance")) {
+        if (!ParseMoney(GetArg("-reservebalance", ""), nReserveBalance)) {
+            InitError(_("Invalid amount for -reservebalance=<amount>"));
+            return false;
+        }
+    }
+    
     nConnectTimeout = GetArg("-timeout", DEFAULT_CONNECT_TIMEOUT);
     if (nConnectTimeout <= 0)
         nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
@@ -1716,6 +1731,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 // Fluid transaction DB's
                 delete pFluidDynodeDB;
                 delete pFluidMiningDB;
+                delete pFluidStakingDB;
                 delete pFluidMintDB;
                 delete pFluidSovereignDB;
                 delete pBanAccountDB;
@@ -1735,6 +1751,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 // Init Fluid transaction DB's
                 pFluidDynodeDB = new CFluidDynodeDB(nTotalCache * 35, false, fReindex, obfuscate);
                 pFluidMiningDB = new CFluidMiningDB(nTotalCache * 35, false, fReindex, obfuscate);
+                pFluidStakingDB = new CFluidStakingDB(nTotalCache * 35, false, fReindex, obfuscate);
                 pFluidMintDB = new CFluidMintDB(nTotalCache * 35, false, fReindex, obfuscate);
                 pFluidSovereignDB = new CFluidSovereignDB(nTotalCache * 35, false, fReindex, obfuscate);
                 pBanAccountDB = new CBanAccountDB(nTotalCache * 35, false, fReindex, obfuscate);
@@ -2130,6 +2147,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->postInitProcess(threadGroup);
+
+    if (GetBoolArg("-staking", false)) {
+        // ppcoin:mint proof-of-stake blocks in the background
+        threadGroup.create_thread(boost::bind(&ThreadStakeMinter));
+    }
 #endif
 
     threadGroup.create_thread(boost::bind(&ThreadSendAlert, boost::ref(connman)));

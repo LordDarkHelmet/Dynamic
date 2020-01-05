@@ -72,12 +72,17 @@ public:
     /** Policy: Filter transactions that do not match well-defined patterns */
     bool RequireStandard() const { return fRequireStandard; }
     /** The target time span between Proof-of-Stake blocks */
-    int64_t TargetPoSSpacing() const { return consensus.nPoSTargetSpacing; }
+    int64_t TargetPosSpacing() const { return consensus.nPosTargetSpacing; }
+    int64_t TargetPosTimespan() const { return consensus.nTargetPosTimespan; }
     /** returns the coinstake maturity (min depth required) **/
-    int COINSTAKE_MIN_DEPTH() const { return nStakeMinDepth; }
-    bool HasStakeMinAgeOrDepth(const int contextHeight, const uint32_t contextTime, const int utxoFromBlockHeight, const uint32_t utxoFromBlockTime) const
+    int COINSTAKE_MIN_DEPTH() const { return consensus.nStakeMinDepth; }
+    bool HasStakeMinDepth(const int contextHeight, const int utxoFromBlockHeight) const
     {
-        return (contextHeight - utxoFromBlockHeight >= nStakeMinDepth);
+        return (contextHeight - utxoFromBlockHeight >= COINSTAKE_MIN_DEPTH());
+    }
+    bool HasStakeMinAge(const uint32_t contextTime, const uint32_t utxoFromBlockTime) const
+    {
+        return (contextTime - utxoFromBlockTime >= consensus.nStakeMinAge);
     }
     /** returns the max future time (and drift in seconds) allowed for a block in the future **/
     int FutureBlockTimeDrift(const bool isPoS) const { return nFutureTimeDriftPoS; }
@@ -134,8 +139,7 @@ protected:
     std::vector<std::string> vSporkAddresses;
     int nMinSporkKeys;
     std::string strDynodePaymentsPubKey;
-    int64_t nTargetPoSSpacing;
-    int nStakeMinDepth;
+    int64_t nTargetPosSpacing;
     int nFutureTimeDriftPoS;
 };
 

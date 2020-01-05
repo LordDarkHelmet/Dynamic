@@ -50,6 +50,7 @@ public:
         ThreadsScriptVerif,      // int
         DatabaseCache,           // int
         SpendZeroConfChange,     // bool
+        HideOrphans,             // bool
         ShowDynodesTab,          // bool
         ShowAdvancedPSUI,        // bool
         ShowPrivateSendPopups,   // bool
@@ -58,6 +59,7 @@ public:
         PrivateSendAmount,       // int
         PrivateSendMultiSession, // bool
         Listen,                  // bool
+        StakeSplitThreshold,     // int
         OptionIDRowCount,
     };
 
@@ -69,6 +71,8 @@ public:
     bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole);
     /** Updates current unit in memory, settings and emits displayUnitChanged(newUnit) signal */
     void setDisplayUnit(const QVariant& value);
+    /* Update StakeSplitThreshold's value in wallet */
+    void setStakeSplitThreshold(int value);
 
     /* Explicit getters */
     bool getHideTrayIcon() { return fHideTrayIcon; }
@@ -95,6 +99,7 @@ private:
     int nDisplayUnit;
     QString strThirdPartyTxUrls;
     bool fCoinControlFeatures;
+    bool fHideOrphans;
     bool fShowAdvancedPSUI;
     /* settings that were overriden by command-line */
     QString strOverriddenByCommandLine;
@@ -110,6 +115,7 @@ Q_SIGNALS:
     void privateSentAmountChanged();
     void advancedPSUIChanged(bool);
     void coinControlFeaturesChanged(bool);
+    void hideOrphansChanged(bool);
     void hideTrayIconChanged(bool);
 };
 

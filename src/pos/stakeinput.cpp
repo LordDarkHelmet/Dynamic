@@ -73,25 +73,9 @@ bool CDynamicStake::CreateTxOuts(CWallet* pwallet, std::vector<CTxOut>& vout, CA
     return true;
 }
 
-bool CDynamicStake::GetModifier(uint64_t& nStakeModifier)
-{
-    if (this->nStakeModifier == 0) {
-        // look for the modifier
-        GetIndexFrom();
-        if (!pindexFrom)
-            return error("%s: failed to get index from", __func__);
-
-        // TODO: This method must be removed from here in the short terms.. it's a call to an static method in kernel.cpp when this class method is only called from kernel.cpp, no comments..
-        if (!GetKernelStakeModifier(pindexFrom->GetBlockHash(), this->nStakeModifier, this->nStakeModifierHeight, this->nStakeModifierTime, false))
-            return error("CheckStakeKernelHash(): failed to get kernel stake modifier");
-    }
-    nStakeModifier = this->nStakeModifier;
-    return true;
-}
-
 CDataStream CDynamicStake::GetUniqueness()
 {
-    //The unique identifier for a PIV stake is the outpoint
+    //The unique identifier for a DYN stake is the outpoint
     CDataStream ss(SER_NETWORK, 0);
     ss << nPosition << txFrom.GetHash();
     return ss;

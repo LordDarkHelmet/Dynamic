@@ -212,14 +212,8 @@ public:
     };
     unsigned int nFlags; // ppcoin: block index flags
     uint256 GetBlockTrust() const;
-    uint64_t nStakeModifier;             // hash modifier for proof-of-stake
-    unsigned int nStakeModifierChecksum; // checksum of index; in-memeory only
     COutPoint prevoutStake;
-    unsigned int nStakeTime;
-    uint256 hashProofOfStake;
-    int64_t nMint;
-    int64_t nMoneySupply;
-    uint256 nStakeModifierV2;
+    uint256 nStakeModifier;
 
     //! block header
     int nVersion;
@@ -250,6 +244,10 @@ public:
         nSequenceId = 0;
         nTimeMax = 0;
 
+        nFlags = 0;
+        nStakeModifier = uint256();
+        prevoutStake.SetNull();
+        // block header
         nVersion = 0;
         hashMerkleRoot = uint256();
         nTime = 0;
@@ -262,7 +260,7 @@ public:
         SetNull();
     }
 
-    CBlockIndex(const CBlockHeader& block)
+    CBlockIndex(const CBlock& block)
     {
         SetNull();
 
@@ -271,6 +269,11 @@ public:
         nTime = block.nTime;
         nBits = block.nBits;
         nNonce = block.nNonce;
+
+        if (block.IsProofOfStake()) {
+            SetProofOfStake();
+            prevoutStake = block.vtx[1]->vin[0].prevout;
+        }
     }
 
     CDiskBlockPos GetBlockPos() const
@@ -374,13 +377,6 @@ public:
         return (nFlags & BLOCK_STAKE_MODIFIER);
     }
 
-    void SetStakeModifier(uint64_t nModifier, bool fGeneratedStakeModifier)
-    {
-        nStakeModifier = nModifier;
-        if (fGeneratedStakeModifier)
-            nFlags |= BLOCK_STAKE_MODIFIER;
-    }
-
     std::string ToString() const
     {
         return strprintf("CBlockIndex(pprev=%p, nHeight=%d, merkle=%s, hashBlock=%s)",
@@ -418,6 +414,11 @@ public:
     //! Efficiently find an ancestor of this block.
     CBlockIndex* GetAncestor(int height);
     const CBlockIndex* GetAncestor(int height) const;
+
+    //! Check if index contains the block header only
+    bool BlockHeaderOnly() const {
+        return nStatus <= 2;
+    }
 };
 
 arith_uint256 GetBlockProof(const CBlockIndex& block);
@@ -466,6 +467,15 @@ public:
 
         // block hash
         READWRITE(hash);
+
+        READWRITE(nFlags);
+        READWRITE(nStakeModifier);
+        if (IsProofOfStake()) {
+            READWRITE(prevoutStake);
+        } else if (ser_action.ForRead()) {
+            const_cast<CDiskBlockIndex*>(this)->prevoutStake.SetNull();
+        }
+
         // block header
         READWRITE(this->nVersion);
         READWRITE(hashPrev);
@@ -516,9 +526,18 @@ public:
     }
 
     /** Returns the index entry for the tip of this chain, or NULL if none. */
-    CBlockIndex* Tip() const
+    CBlockIndex* Tip(bool fProofOfStake = false) const
     {
-        return vChain.size() > 0 ? vChain[vChain.size() - 1] : NULL;
+        if (vChain.size() < 1)
+            return NULL;
+
+        CBlockIndex* pindex = vChain[vChain.size() - 1];
+
+        if (fProofOfStake) {
+            while (pindex && pindex->pprev && !pindex->IsProofOfStake())
+                pindex = pindex->pprev;
+        }
+        return pindex;
     }
 
     /** Returns the index entry at a particular height in this chain, or NULL if no such height exists. */
